@@ -41,6 +41,18 @@ services:
     networks:
       - kle-net
 
+  # logstash:
+  #   image: docker.elastic.co/logstash/logstash:9.4.2
+  #   container_name: chapitre-1-logstash
+  #   volumes:
+  #     - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+  #     - ./logstash/data:/usr/share/logstash/data:ro
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
+  #   networks:
+  #     - kle-net
+
 volumes:
   esdata:
     driver: local
