@@ -484,3 +484,201 @@ curl -X DELETE localhost:9200/products
 # Bulk
 curl -X POST localhost:9200/_bulk -H "Content-Type: application/json" --data-binary "@documents.json"
 ```
+
+---
+
+## Partie 6 : Rechercher des documents
+
+### Etape 6.1 : Recuperer tous les documents
+
+```bash
+GET /products/_search
+{
+  "query": { "match_all": {} }
+}
+```
+
+### Etape 6.2 : Recherche full-text
+
+Rechercher "keyboard" dans `name` et `description` :
+
+```bash
+GET /products/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "keyboard",
+      "fields": ["name", "description"]
+    }
+  }
+}
+```
+
+### Etape 6.3 : Filtrer par categorie
+
+```bash
+GET /products/_search
+{
+  "query": {
+    "term": { "category": "Accessories" }
+  }
+}
+```
+
+### Etape 6.4 : Recherche avec plage de prix
+
+Produits entre 50 et 200 EUR :
+
+```bash
+GET /products/_search
+{
+  "query": {
+    "range": {
+      "price": { "gte": 50, "lte": 200 }
+    }
+  }
+}
+```
+
+### Etape 6.5 : Combiner plusieurs criteres (bool query)
+
+Produits en stock ET prix < 100 EUR :
+
+```bash
+GET /products/_search
+{
+  "query": {
+    "bool": {
+      "must": [{ "term": { "in_stock": true } }],
+      "filter": [{ "range": { "price": { "lt": 100 } } }]
+    }
+  }
+}
+```
+
+---
+
+## Partie 7 : Explorer dans Kibana
+
+### Etape 7.1 : Creer un Data View (Index Pattern)
+
+1. Menu (☰) → **Management** → **Stack Management**
+2. Sous Kibana, selectionner **Data Views**
+3. Cliquer sur **Create data view**
+4. Remplir :
+   - **Name** : `Products`
+   - **Index pattern** : `products`
+   - **Timestamp field** : `created_at`
+5. Cliquer **Save data view to Kibana**
+
+### Etape 7.2 : Explorer les donnees dans Discover
+
+1. Menu (☰) → **Analytics** → **Discover**
+2. Selectionner le data view `Products`
+3. Utiliser la barre KQL pour filtrer :
+   ```
+   category: "Accessories"
+   price > 100 and in_stock: true
+   ```
+
+### Etape 7.3 : Ajouter des colonnes
+
+Dans **Available fields** (gauche), cliquer sur :
+- `name`
+- `price`
+- `category`
+- `in_stock`
+
+Les colonnes s'ajoutent au tableau.
+
+### Etape 7.4 : Sauvegarder la recherche
+
+1. Cliquer **Save** (en haut a droite)
+2. Nom : `Products overview`
+3. Cliquer **Save**
+
+---
+
+## Partie 8 : Operations de gestion
+
+### Etape 8.1 : Mettre a jour un document
+
+```bash
+POST /products/_update/1
+{
+  "doc": {
+    "price": 139.99,
+    "in_stock": false
+  }
+}
+```
+
+**Reponse :**
+```json
+{
+  "_index": "products",
+  "_id": "1",
+  "_version": 2,
+  "result": "updated"
+}
+```
+
+### Etape 8.2 : Supprimer un document
+
+```bash
+DELETE /products/_doc/3
+```
+
+**Reponse :**
+```json
+{
+  "_index": "products",
+  "_id": "3",
+  "_version": 2,
+  "result": "deleted"
+}
+```
+
+### Etape 8.3 : Supprimer tous les documents d'un index
+
+```bash
+POST /products/_delete_by_query
+{
+  "query": { "match_all": {} }
+}
+```
+
+### Etape 8.4 : Fermer un index
+
+```bash
+POST /products/_close
+```
+
+Pour le rouvrir :
+```bash
+POST /products/_open
+```
+
+### Etape 8.5 : Supprimer un index
+
+```bash
+DELETE /products
+```
+
+> **Attention** : cette operation est irreversible.
+
+---
+
+## Resumé final
+
+| Operation | Methode | Endpoint |
+|-----------|---------|----------|
+| Sante cluster | GET | `/_cat/health?v` |
+| Creer index | PUT | `/nom_index` |
+| Indexer doc | POST | `/nom_index/_doc/id` |
+| Bulk index | POST | `/nom_index/_bulk` |
+| Rechercher | GET | `/nom_index/_search` |
+| Compter | GET | `/nom_index/_count` |
+| Mettre a jour | POST | `/nom_index/_update/id` |
+| Supprimer doc | DELETE | `/nom_index/_doc/id` |
+| Supprimer index | DELETE | `/nom_index` |
