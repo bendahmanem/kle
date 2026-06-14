@@ -249,3 +249,238 @@ curl -X POST localhost:9200/monindex/_doc/1 -H "Content-Type: application/json" 
 # Rechercher
 curl -X GET localhost:9200/monindex/_search -H "Content-Type: application/json" -d '{"query": {...}}'
 ```
+---
+
+## Partie 4 : Creer et manipuler un index
+
+### Etape 4.1 : Creer un index avec mapping explicite
+
+**Via curl :**
+
+```bash
+curl -X PUT "localhost:9200/products" -H "Content-Type: application/json" -d'
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "description": { "type": "text" },
+      "price": { "type": "float" },
+      "in_stock": { "type": "boolean" },
+      "category": { "type": "keyword" },
+      "tags": { "type": "keyword" },
+      "created_at": { "type": "date" }
+    }
+  }
+}'
+```
+
+**Via Kibana Dev Tools (recommande) :**
+
+1. Menu (☰) → Management → Dev Tools
+2. Saisir la requete :
+```json
+PUT /products
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "description": { "type": "text" },
+      "price": { "type": "float" },
+      "in_stock": { "type": "boolean" },
+      "category": { "type": "keyword" },
+      "tags": { "type": "keyword" },
+      "created_at": { "type": "date" }
+    }
+  }
+}
+```
+3. Executer avec ▶ ou `Ctrl+Enter`
+
+**Reponse attendue :**
+```json
+{
+  "acknowledged": true,
+  "shards_acknowledged": true,
+  "index": "products"
+}
+```
+
+### Etape 4.2 : Verifier la creation de l'index
+
+```bash
+curl -X GET "localhost:9200/_cat/indices?v"
+```
+
+**Sortie attendue :**
+```
+health status index    uuid    pri rep docs.count docs.deleted store.size pri.store.size
+yellow open   products AbC123  1   0   0          0            225b       225b
+```
+
+> **Note :** `yellow` est normal avec 0 replicas sur un single-node.
+
+### Etape 4.3 : Consulter le mapping
+
+```bash
+GET /products/_mapping
+```
+
+Verifier que tous les champs sont definis avec les types corrects.
+
+---
+
+## Partie 5 : Indexer des documents
+
+### Etape 5.1 : Indexer un document (ID auto-genere)
+
+```bash
+POST /products/_doc
+{
+  "name": "Laptop Dell XPS 15",
+  "description": "Powerful laptop with 16GB RAM and 512GB SSD",
+  "price": 1299.99,
+  "in_stock": true,
+  "category": "Electronics",
+  "tags": ["laptop", "dell", "xps"],
+  "created_at": "2026-06-14T10:00:00"
+}
+```
+
+**Reponse :**
+```json
+{
+  "_index": "products",
+  "_id": "AbC123...",
+  "_version": 1,
+  "result": "created",
+  "_shards": { "total": 1, "successful": 1, "failed": 0 }
+}
+```
+
+### Etape 5.2 : Indexer un document (ID specifique)
+
+```bash
+POST /products/_doc/prod-001
+{
+  "name": "Laptop Dell XPS 15",
+  "description": "Powerful laptop with 16GB RAM and 512GB SSD",
+  "price": 1299.99,
+  "in_stock": true,
+  "category": "Electronics",
+  "tags": ["laptop", "dell", "xps"],
+  "created_at": "2026-06-14T10:00:00"
+}
+```
+
+### Etape 5.3 : Indexer plusieurs documents (bulk)
+
+```bash
+POST /products/_bulk
+{ "index": { "_id": "prod-002" } }
+{ "name": "Samsung Galaxy S24", "description": "Smartphone with 8GB RAM", "price": 899.99, "in_stock": true, "category": "Electronics", "tags": ["phone", "samsung"], "created_at": "2026-06-14T11:00:00" }
+{ "index": { "_id": "prod-003" } }
+{ "name": "Logitech MX Master 3", "description": "Wireless mouse ergonomic", "price": 99.99, "in_stock": false, "category": "Accessories", "tags": ["mouse", "logitech"], "created_at": "2026-06-14T12:00:00" }
+```
+
+### Etape 5.4 : Rechercher dans l'index
+
+**Tous les documents :**
+```bash
+GET /products/_search
+```
+
+**Filtrer par categorie :**
+```bash
+GET /products/_search
+{
+  "query": {
+    "term": { "category": "Electronics" }
+  }
+}
+```
+
+**Recherche textuelle (champ `name`) :**
+```bash
+GET /products/_search
+{
+  "query": {
+    "match": { "name": "laptop" }
+  }
+}
+```
+
+**Filtrer par prix :**
+```bash
+GET /products/_search
+{
+  "query": {
+    "range": { "price": { "gte": 100, "lte": 1000 } }
+  }
+}
+```
+
+**Filtrer produits en stock :**
+```bash
+GET /products/_search
+{
+  "query": {
+    "term": { "in_stock": true }
+  }
+}
+```
+
+---
+
+## Acces Kibana
+
+- URL : **http://localhost:5601**
+- Menu (☰) → **Management** → **Dev Tools** pour les requetes JSON
+- Menu (☰) → **Discover** pour explorer visuellement les donnees indexees
+
+### Si token d'enrollment requis (Elasticsearch 9.x security)
+
+```bash
+# Recuperer le token
+docker-compose logs es01 | grep "Enrollment token"
+
+# Ou generer un nouveau token
+docker exec chapitre-1-es01 /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+```
+
+Puis coller le token dans Kibana au premier lancement.
+
+---
+
+## Commandes de reference
+
+```bash
+# Cluster
+curl localhost:9200/_cat/health?v
+curl localhost:9200/_cluster/stats?pretty
+
+# Indices
+curl localhost:9200/_cat/indices?v
+curl localhost:9200/_cat/nodes?v
+
+# Documents
+curl -X POST localhost:9200/products/_doc -H "Content-Type: application/json" -d '{...}'
+curl -X GET localhost:9200/products/_search -H "Content-Type: application/json" -d '{"query": {...}}'
+curl -X DELETE localhost:9200/products
+
+# Bulk
+curl -X POST localhost:9200/_bulk -H "Content-Type: application/json" --data-binary "@documents.json"
+```
